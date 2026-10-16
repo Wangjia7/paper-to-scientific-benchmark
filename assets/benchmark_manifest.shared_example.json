@@ -1,0 +1,113 @@
+{
+  "version": "1.1",
+  "title": "单一数值模拟内的多项科学判断（结构示例，非已验证科研题）",
+  "paper": "Elbers et al. 2022 arXiv:2202.00670 — example ONLY",
+  "research_question": "统一模拟框架下，识别误差来源、近似适用范围及中微子质量推断的数值污染",
+  "requirements": {
+    "min_scientific_judgments": 3,
+    "reason": "Specific current platform review, NOT 3 independent controlled experiments"
+  },
+  "allow_shared_tables": true,
+  "runtime": {
+    "cpu_cores": 8,
+    "ram_gb": 16,
+    "gpu_required": false,
+    "max_hours": 5
+  },
+  "pass_score": 80.0,
+  "checkpoints": [
+    {
+      "id": "A",
+      "judgment_id": "A",
+      "scientific_question": "截断与离散化哪个机制支配当前误差？",
+      "scientific_decision": "根据跨阶数、起始时刻和分辨率交叉对照排除竞争误差机制",
+      "evidence": [
+        "SHARED: matched-phase N-body conditions / resolution and start-redshift matrix",
+        "FOCUS-A: distinct contrasts are described in science design"
+      ],
+      "truth_provenance": "EXAMPLE ONLY: private reference value for the A scientific judgment",
+      "target": {
+        "name": "dominant_error_class",
+        "unit": "class_code"
+      },
+      "output_file": "results.csv",
+      "id_column": "case_id",
+      "value_column": "dominant_error_class",
+      "truth_file": "private/unified_truth.csv",
+      "group_column": "group_id",
+      "min_score": 26.0,
+      "groups": [
+        {
+          "id": "reference",
+          "description": "示例工况（需要针对实际物理和噪声重新校准）",
+          "count": 10,
+          "abs_tol": 0.0,
+          "weight": 40.0,
+          "min_pass": 6
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "judgment_id": "B",
+      "scientific_question": "哪些尺度/构型需要超越小尺度常数近似？",
+      "scientific_decision": "通过输入模态构型对照判断高阶中微子近似的有效性",
+      "evidence": [
+        "SHARED: matched-phase N-body conditions / resolution and start-redshift matrix",
+        "FOCUS-B: distinct contrasts are described in science design"
+      ],
+      "truth_provenance": "EXAMPLE ONLY: private reference value for the B scientific judgment",
+      "target": {
+        "name": "scale_validity_limit",
+        "unit": "1/Mpc"
+      },
+      "output_file": "results.csv",
+      "id_column": "case_id",
+      "value_column": "scale_validity_limit",
+      "truth_file": "private/unified_truth.csv",
+      "group_column": "group_id",
+      "min_score": 19.5,
+      "groups": [
+        {
+          "id": "reference",
+          "description": "示例工况（需要针对实际物理和噪声重新校准）",
+          "count": 10,
+          "abs_tol": 0.02,
+          "weight": 30.0,
+          "min_pass": 6
+        }
+      ]
+    },
+    {
+      "id": "C",
+      "judgment_id": "C",
+      "scientific_question": "残留初始条件误差会使中微子质量推断偏多少？",
+      "scientific_decision": "结合不同质量与同相位谱比辨别抵消与残留数值偏差",
+      "evidence": [
+        "SHARED: matched-phase N-body conditions / resolution and start-redshift matrix",
+        "FOCUS-C: distinct contrasts are described in science design"
+      ],
+      "truth_provenance": "EXAMPLE ONLY: private reference value for the C scientific judgment",
+      "target": {
+        "name": "mass_inference_bias",
+        "unit": "eV"
+      },
+      "output_file": "results.csv",
+      "id_column": "case_id",
+      "value_column": "mass_inference_bias",
+      "truth_file": "private/unified_truth.csv",
+      "group_column": "group_id",
+      "min_score": 19.5,
+      "groups": [
+        {
+          "id": "reference",
+          "description": "示例工况（需要针对实际物理和噪声重新校准）",
+          "count": 10,
+          "abs_tol": 0.008,
+          "weight": 30.0,
+          "min_pass": 6
+        }
+      ]
+    }
+  ]
+}

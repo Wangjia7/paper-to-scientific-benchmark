@@ -126,6 +126,79 @@ def main():
         assert not missing["passed"] and missing["checkpoints"]["B"]["score"] == 0
         assert missing["checkpoints"]["C"]["score"] == 30
 
+        # Shared scientific experiment: three distinguishable judgments can share
+        # one calibration/observation table, one private truth table and one CSV.
+        shared = deepcopy(manifest)
+        shared["allow_shared_tables"] = True
+        shared["requirements"] = {"min_scientific_judgments": 3}
+        joint_truth = []
+        joint_output = []
+        names = ["A", "B", "C"]
+        weights = [40.0, 30.0, 30.0]
+        truth_cols = ["case_id", "signal_A", "mechanism_B", "propagation_C", "case_group"]
+        pred_cols = truth_cols[:-1]
+        for cp, ident, weight in zip(shared["checkpoints"], names, weights):
+            cp["judgment_id"] = ident
+            cp["scientific_question"] = f"Distinct falsifiable claim {ident} in ONE study"
+            cp["id_column"] = "case_id"
+            cp["value_column"] = {"A": "signal_A", "B": "mechanism_B", "C": "propagation_C"}[ident]
+            cp["group_column"] = "case_group"
+            cp["truth_file"] = "private/shared_truth.csv"
+            cp["output_file"] = "shared_predictions.csv"
+            cp["groups"] = [{"id": "G", "count": 5, "abs_tol": 0.01, "weight": weight, "min_pass": 4}]
+            cp["min_score"] = weight * 0.7
+        for i in range(5):
+            vals = [i, 0.1 * i, 1.0 + 0.2 * i, -0.15 + 0.3 * i]
+            joint_truth.append([*vals, "G"])
+            joint_output.append(vals)
+        write_csv(root / "private/shared_truth.csv", truth_cols, joint_truth)
+        write_csv(sub / "shared_predictions.csv", pred_cols, joint_output)
+        errors, _ = validate_manifest(shared, root, final=True)
+        assert not errors, errors
+        full_shared = grade(shared, root, sub)
+        assert full_shared["passed"] and full_shared["score"] == 100.0
+        assert public_scorecard(shared)["allow_shared_tables"] is True
+        assert "truth_file" not in json.dumps(public_scorecard(shared))
+        damaged = [r[:] for r in joint_output]
+        damaged[2][2] = "NaN"  # Only the B scientific conclusion is invalid.
+        write_csv(sub / "shared_predictions.csv", pred_cols, damaged)
+        invalid_shared = grade(shared, root, sub)
+        assert not invalid_shared["passed"]
+        assert invalid_shared["checkpoints"]["A"]["score"] == 40.0
+        assert invalid_shared["checkpoints"]["B"]["score"] == 0.0
+        assert invalid_shared["checkpoints"]["C"]["score"] == 30.0
+        write_csv(sub / "shared_predictions.csv", pred_cols, joint_output)
+
+        # Splitting one scientific judgment into three checkpoints must NOT pass
+        # the requirement for three scientifically different conclusions.
+        disguised = deepcopy(shared)
+        for cp in disguised["checkpoints"]:
+            cp["judgment_id"] = "SAME_JUDGMENT"
+        errors, _ = validate_manifest(disguised, root, final=False)
+        assert any("distinct judgment_id" in e for e in errors), errors
+
+        # An explicit different platform may require two judgments rather than
+        # three; never hardcode three separate experiments as a global rule.
+        two = deepcopy(shared)
+        two["checkpoints"] = two["checkpoints"][:2]
+        two["requirements"]["min_scientific_judgments"] = 2
+        two["checkpoints"][0]["groups"][0]["weight"] = 50.0
+        two["checkpoints"][1]["groups"][0]["weight"] = 50.0
+        errors, _ = validate_manifest(two, root, final=True)
+        assert not errors, errors
+        assert grade(two, root, sub)["score"] == 100.0
+
+        # Shared files must be an explicit schema choice, and shared scientific
+        # columns must not silently collapse into one target.
+        denied = deepcopy(shared)
+        denied["allow_shared_tables"] = False
+        errors, _ = validate_manifest(denied, root, final=False)
+        assert any("duplicate output_file" in e for e in errors)
+        collapsed = deepcopy(shared)
+        collapsed["checkpoints"][1]["value_column"] = "signal_A"
+        errors, _ = validate_manifest(collapsed, root, final=False)
+        assert any("distinct scientific value columns" in e for e in errors)
+
         # Obvious public ZIP/file leak names are flagged, including nested names.
         flagged = root / "public" / "private"
         flagged.mkdir(exist_ok=True)
@@ -149,7 +222,7 @@ def main():
         issues, _ = validate_manifest(broken, root, final=False)
         assert any("duplicate private truth_file" in s for s in issues)
 
-    print("PASS: manifest, independent scoring, subgroup gates, boundary, row order, invalid files, ZIP leak detection, duplicate outputs/truth")
+    print("PASS: original scoring, configurable judgment counts, shared truth/output tables, per-column independent scoring, scientific-judgment IDs, boundary, row order, invalid files, ZIP leak detection")
     return 0
 
 

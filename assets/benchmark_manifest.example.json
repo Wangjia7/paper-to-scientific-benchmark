@@ -1,17 +1,29 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "title": "基本平面透镜信号、污染与测量偏差的三重盲校准（结构示例）",
   "paper": "Xu et al. 2026, arXiv:2609.09151v1",
-  "runtime": {"cpu_cores": 8, "ram_gb": 16, "gpu_required": false, "max_hours": 5},
+  "runtime": {
+    "cpu_cores": 8,
+    "ram_gb": 16,
+    "gpu_required": false,
+    "max_hours": 5
+  },
   "pass_score": 80.0,
   "checkpoints": [
     {
       "id": "A",
       "scientific_question": "复杂选源下真实弱透镜汇聚度能否被恢复？",
       "scientific_decision": "选择可泛化的内禀尺寸模型、目标/随机对照与选源响应校准策略",
-      "evidence": ["A: unlensed galaxy references", "A: labelled lensing calibration fields", "A: target/control blind observations"],
+      "evidence": [
+        "A: unlensed galaxy references",
+        "A: labelled lensing calibration fields",
+        "A: target/control blind observations"
+      ],
       "truth_provenance": "独立固定的引力透镜信号注入，盲测真值在私有生成器中留存",
-      "target": {"name": "kappa_ref", "unit": "dimensionless"},
+      "target": {
+        "name": "kappa_ref",
+        "unit": "dimensionless"
+      },
       "output_file": "convergence_predictions.csv",
       "id_column": "field_id",
       "value_column": "kappa_ref",
@@ -19,19 +31,55 @@
       "group_column": "family",
       "min_score": 28.0,
       "groups": [
-        {"id": "A1", "description": "常规观测", "count": 10, "abs_tol": 0.0090, "weight": 12.0, "min_pass": 6},
-        {"id": "A2", "description": "观测质量与选源变化", "count": 10, "abs_tol": 0.0100, "weight": 10.0, "min_pass": 6},
-        {"id": "A3", "description": "关联污染增强", "count": 10, "abs_tol": 0.0100, "weight": 10.0, "min_pass": 6},
-        {"id": "A4", "description": "零汇聚度负对照", "count": 10, "abs_tol": 0.0065, "weight": 8.0, "min_pass": 5}
-      ]
+        {
+          "id": "A1",
+          "description": "常规观测",
+          "count": 10,
+          "abs_tol": 0.009,
+          "weight": 12.0,
+          "min_pass": 6
+        },
+        {
+          "id": "A2",
+          "description": "观测质量与选源变化",
+          "count": 10,
+          "abs_tol": 0.01,
+          "weight": 10.0,
+          "min_pass": 6
+        },
+        {
+          "id": "A3",
+          "description": "关联污染增强",
+          "count": 10,
+          "abs_tol": 0.01,
+          "weight": 10.0,
+          "min_pass": 6
+        },
+        {
+          "id": "A4",
+          "description": "零汇聚度负对照",
+          "count": 10,
+          "abs_tol": 0.0065,
+          "weight": 8.0,
+          "min_pass": 5
+        }
+      ],
+      "judgment_id": "A"
     },
     {
       "id": "B",
       "scientific_question": "红移局域本征关联能否与加性测量漂移区分？",
       "scientific_decision": "区分局域物理关联与非局域趋势、共同漂移、选源差异",
-      "evidence": ["B: unlensed association-only fields", "B: redshift-localized target/control residuals", "B: labelled association calibration fields"],
+      "evidence": [
+        "B: unlensed association-only fields",
+        "B: redshift-localized target/control residuals",
+        "B: labelled association calibration fields"
+      ],
       "truth_provenance": "独立无透镜关联实验中的有符号局域关联峰值注入",
-      "target": {"name": "A_assoc_dex", "unit": "dex"},
+      "target": {
+        "name": "A_assoc_dex",
+        "unit": "dex"
+      },
       "output_file": "association_predictions.csv",
       "id_column": "field_id",
       "value_column": "A_assoc_dex",
@@ -39,18 +87,47 @@
       "group_column": "family",
       "min_score": 18.0,
       "groups": [
-        {"id": "B0", "description": "无真实关联", "count": 10, "abs_tol": 0.013, "weight": 10.0, "min_pass": 5},
-        {"id": "B+", "description": "正关联", "count": 10, "abs_tol": 0.013, "weight": 10.0, "min_pass": 5},
-        {"id": "B-", "description": "负关联", "count": 10, "abs_tol": 0.011, "weight": 10.0, "min_pass": 5}
-      ]
+        {
+          "id": "B0",
+          "description": "无真实关联",
+          "count": 10,
+          "abs_tol": 0.013,
+          "weight": 10.0,
+          "min_pass": 5
+        },
+        {
+          "id": "B+",
+          "description": "正关联",
+          "count": 10,
+          "abs_tol": 0.013,
+          "weight": 10.0,
+          "min_pass": 5
+        },
+        {
+          "id": "B-",
+          "description": "负关联",
+          "count": 10,
+          "abs_tol": 0.011,
+          "weight": 10.0,
+          "min_pass": 5
+        }
+      ],
+      "judgment_id": "B"
     },
     {
       "id": "C",
       "scientific_question": "测量偏差从配对校准迁移至新星系族群时透镜响应偏差有多大？",
       "scientific_decision": "判断仿射与非线性测量映射是否可外推，处理配对校准异常值与族群变化",
-      "evidence": ["C: matched reference and alternative photometry", "C: distinct calibration and science populations", "C: labelled instrument calibration configurations"],
+      "evidence": [
+        "C: matched reference and alternative photometry",
+        "C: distinct calibration and science populations",
+        "C: labelled instrument calibration configurations"
+      ],
       "truth_provenance": "独立仪器实验中科学族群的平均局部透镜响应导数",
-      "target": {"name": "M_response", "unit": "dimensionless"},
+      "target": {
+        "name": "M_response",
+        "unit": "dimensionless"
+      },
       "output_file": "instrument_predictions.csv",
       "id_column": "instrument_id",
       "value_column": "M_response",
@@ -58,9 +135,30 @@
       "group_column": "family",
       "min_score": 20.0,
       "groups": [
-        {"id": "Caff", "description": "仿射测量变换", "count": 12, "abs_tol": 0.020, "weight": 15.0, "min_pass": 7},
-        {"id": "Cnon", "description": "非线性测量变换", "count": 12, "abs_tol": 0.020, "weight": 15.0, "min_pass": 7}
-      ]
+        {
+          "id": "Caff",
+          "description": "仿射测量变换",
+          "count": 12,
+          "abs_tol": 0.02,
+          "weight": 15.0,
+          "min_pass": 7
+        },
+        {
+          "id": "Cnon",
+          "description": "非线性测量变换",
+          "count": 12,
+          "abs_tol": 0.02,
+          "weight": 15.0,
+          "min_pass": 7
+        }
+      ],
+      "judgment_id": "C"
     }
-  ]
+  ],
+  "research_question": "在同一 FP lensing 科学主题下辨认信号、污染和测量响应；三判断可共享实验与数据，不以实验数判定科学价值",
+  "requirements": {
+    "min_scientific_judgments": 3,
+    "reason": "Current user platform review; not a universal rule requiring three experiments"
+  },
+  "allow_shared_tables": false
 }

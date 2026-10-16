@@ -72,12 +72,27 @@ def validate_manifest(manifest: dict, root: Path, final: bool = False) -> tuple[
     total_pass_score = manifest.get("pass_score")
     if not is_nonnegative_number(total_pass_score):
         errors.append("pass_score must be finite and nonnegative")
+    requirements = manifest.get("requirements", {})
+    if not isinstance(requirements, dict):
+        errors.append("requirements must be an object")
+        requirements = {}
+    # The default of 3 matches this user's platform review, NOT a universal benchmark law.
+    minimum = requirements.get("min_scientific_judgments", 3)
+    if type(minimum) is not int or minimum < 1:
+        errors.append("requirements.min_scientific_judgments must be a positive integer")
+        minimum = 3
+    allow_shared = manifest.get("allow_shared_tables", False)
+    if type(allow_shared) is not bool:
+        errors.append("allow_shared_tables must be boolean")
+        allow_shared = False
     entries = manifest.get("checkpoints")
-    if not isinstance(entries, list) or len(entries) < 3:
-        errors.append("at least 3 checkpoints with independent scientific judgments are required")
+    if not isinstance(entries, list) or not entries:
+        errors.append("checkpoints must be a nonempty list")
         return errors, warnings
 
-    ids, output_files, truth_files, targets, combined_evidence = set(), set(), set(), set(), []
+    ids, judgment_ids, output_files, truth_files, targets, combined_evidence = (
+        set(), set(), {}, {}, set(), []
+    )
     all_weight = 0.0
     min_possible_sum = 0.0
     for idx, cp in enumerate(entries):
@@ -90,6 +105,13 @@ def validate_manifest(manifest: dict, root: Path, final: bool = False) -> tuple[
             errors.append(f"{prefix} missing/duplicate id: {cid!r}")
         else:
             ids.add(cid)
+        # Several scoring checkpoints may belong to one scientific judgment.
+        # Counting file names or checkpoint IDs does NOT establish independence.
+        judgment = cp.get("judgment_id", cid)
+        if not valid_text(judgment):
+            errors.append(f"{prefix} missing judgment_id")
+        else:
+            judgment_ids.add(judgment)
         for field in ("scientific_question", "scientific_decision", "truth_provenance",
                       "id_column", "value_column", "output_file", "group_column", "truth_file"):
             if not valid_text(cp.get(field)):
@@ -108,20 +130,32 @@ def validate_manifest(manifest: dict, root: Path, final: bool = False) -> tuple[
         else:
             eset = frozenset(evidence)
             if eset in combined_evidence:
-                warnings.append(f"{prefix} has evidence identical to another checkpoint")
+                warnings.append(f"{prefix} shares described evidence; confirm distinct falsifiable conclusions (shared experiments are allowed)")
             combined_evidence.append(eset)
         filename = cp.get("output_file")
         if valid_text(filename):
-            if filename in output_files:
-                errors.append(f"duplicate output_file {filename!r}")
-            output_files.add(filename)
+            prev = output_files.get(filename)
+            if prev is not None:
+                if not allow_shared:
+                    errors.append(f"duplicate output_file {filename!r}; use allow_shared_tables=true for shared CSVs")
+                elif (cp.get("id_column") != prev.get("id_column") or
+                      cp.get("value_column") == prev.get("value_column")):
+                    errors.append(f"{prefix} shared output_file {filename!r} needs a common ID column and distinct scientific value columns")
+            else:
+                output_files[filename] = cp
             if Path(filename).name != filename or not filename.endswith(".csv"):
                 errors.append(f"{prefix} output_file must be a CSV basename")
         if valid_text(cp.get("truth_file")):
             truth_filename = cp["truth_file"]
-            if truth_filename in truth_files:
-                errors.append(f"duplicate private truth_file {truth_filename!r}; judgments must have independent labels")
-            truth_files.add(truth_filename)
+            prev_truth = truth_files.get(truth_filename)
+            if prev_truth is not None:
+                if not allow_shared:
+                    errors.append(f"duplicate private truth_file {truth_filename!r}; use allow_shared_tables=true for shared CSVs")
+                elif (cp.get("id_column") != prev_truth.get("id_column") or
+                      cp.get("value_column") == prev_truth.get("value_column")):
+                    errors.append(f"{prefix} shared truth_file {truth_filename!r} needs a common ID column and distinct scientific value columns")
+            else:
+                truth_files[truth_filename] = cp
             if not safe_relative(root, truth_filename):
                 errors.append(f"{prefix} truth_file not safely inside project root")
             elif final and not (root / truth_filename).is_file():
@@ -159,13 +193,18 @@ def validate_manifest(manifest: dict, root: Path, final: bool = False) -> tuple[
             errors.append(f"{prefix} min_score must be between 0 and {weight}")
         else:
             min_possible_sum += min_score
+    if len(judgment_ids) < minimum:
+        errors.append(
+            f"only {len(judgment_ids)} distinct judgment_id values; platform requires {minimum} "
+            "scientific judgments (NOT separate experiments or separate datasets)"
+        )
     if abs(all_weight - 100.0) > 1e-8:
         errors.append(f"group weights sum to {all_weight:g}; expected 100")
     if is_nonnegative_number(total_pass_score) and total_pass_score > all_weight:
         errors.append("pass_score exceeds total weight")
     if is_nonnegative_number(total_pass_score) and min_possible_sum > all_weight:
         errors.append("sum(min_score) exceeds total score")
-    warnings.append("Manual review REQUIRED: genuinely distinct scientific decisions cannot be verified mechanically")
+    warnings.append("Manual review REQUIRED: distinct judgment_id values or separate files cannot prove genuinely different scientific interpretations; one shared experiment is allowed")
     return errors, warnings
 
 
@@ -193,11 +232,13 @@ def public_scorecard(manifest: dict) -> dict:
     return {
         "title": manifest.get("title"),
         "pass_score": manifest.get("pass_score"),
+        "requirements": manifest.get("requirements", {"min_scientific_judgments": 3}),
+        "allow_shared_tables": manifest.get("allow_shared_tables", False),
         "scoring": "group_weight * n_with_absolute_error_le_abs_tol / group_count",
         "validity": "per-checkpoint invalid CSV = zero for that checkpoint; total_pass false",
         "checkpoints": [
             {
-                "id": cp["id"], "scientific_question": cp["scientific_question"],
+                "id": cp["id"], "judgment_id": cp.get("judgment_id", cp["id"]), "scientific_question": cp["scientific_question"],
                 "target": cp["target"], "output_file": cp["output_file"],
                 "id_column": cp["id_column"], "value_column": cp["value_column"],
                 "min_score": cp["min_score"],
