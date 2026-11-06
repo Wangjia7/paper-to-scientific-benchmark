@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "release_id": "example_benchmark_v1_FROZEN",
+  "unified_science_question": "Can the proposed additional observable improve a calibrated inference under a controlled contaminant?",
+  "contract_frozen_before_final_blind": true,
+  "blind_split_independent_units": true,
+  "development_seed_count": 3,
+  "mandatory_science_gates": [
+    "A_signal_vs_null",
+    "B_contaminant_counterfactual",
+    "C_clean_incremental_information",
+    "C_contaminated_nondegradation"
+  ],
+  "public_only_reference": {
+    "reads_only_public": true,
+    "passed": true,
+    "all_mandatory_gates_passed": true,
+    "log_path": "reports/public_reference.log"
+  },
+  "ordinary_baselines": [
+    {
+      "name": "fixed_template_regression",
+      "science_assumption": "Known response templates and noise suffice for the physics decision",
+      "reads_only_public": true,
+      "failed_mandatory_gates": ["A_signal_vs_null", "B_contaminant_counterfactual"],
+      "overall_passed": false,
+      "log_path": "reports/fixed_template.log"
+    },
+    {
+      "name": "conservative_single_probe",
+      "science_assumption": "Do not use any extra signal or joint-probe information",
+      "reads_only_public": true,
+      "failed_mandatory_gates": ["C_clean_incremental_information"],
+      "overall_passed": false,
+      "log_path": "reports/single_probe.log"
+    },
+    {
+      "name": "unconditional_joint_probe",
+      "science_assumption": "Always include the additional observable without contamination controls",
+      "reads_only_public": true,
+      "failed_mandatory_gates": ["C_contaminated_nondegradation"],
+      "overall_passed": false,
+      "log_path": "reports/unconditional_joint.log"
+    }
+  ]
+}

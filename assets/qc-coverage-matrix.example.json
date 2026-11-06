@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "judgment_id": "B",
+  "context": "Günther GP/PCA QC example only; thresholds are not universal",
+  "mandatory_domains": ["LOW", "MID", "HIGH"],
+  "mandatory_targets": ["joint_gaussian_kl", "pca_source_fraction"],
+  "final_pass_logic": "files_valid AND score>=80 AND A>=22 AND B>=18 AND C>=27 AND all(mandatory_gates)",
+  "gates": [
+    {"gate_id": "B.LOW.joint_gaussian_kl", "domain": "LOW", "target": "joint_gaussian_kl", "operator": "<=", "threshold": 0.8, "threshold_provenance": "public formula and independent repeat-sampling validation", "public": true},
+    {"gate_id": "B.LOW.pca_source_fraction", "domain": "LOW", "target": "pca_source_fraction", "operator": "<=", "threshold": 0.0008427437052827944, "threshold_provenance": "0.75 * public calibration fraction (full formula in README)", "public": true},
+    {"gate_id": "B.MID.joint_gaussian_kl", "domain": "MID", "target": "joint_gaussian_kl", "operator": "<=", "threshold": 0.8, "threshold_provenance": "public formula and independent repeat-sampling validation", "public": true},
+    {"gate_id": "B.MID.pca_source_fraction", "domain": "MID", "target": "pca_source_fraction", "operator": "<=", "threshold": 0.00822743164172348, "threshold_provenance": "0.75 * public calibration fraction (full formula in README)", "public": true},
+    {"gate_id": "B.HIGH.joint_gaussian_kl", "domain": "HIGH", "target": "joint_gaussian_kl", "operator": "<=", "threshold": 0.8, "threshold_provenance": "public formula and independent repeat-sampling validation", "public": true},
+    {"gate_id": "B.HIGH.pca_source_fraction", "domain": "HIGH", "target": "pca_source_fraction", "operator": "<=", "threshold": 0.004191392813382967, "threshold_provenance": "0.75 * public calibration fraction (full formula in README)", "public": true}
+  ],
+  "required_tests": [
+    "normal_reference", "scientifically_equivalent", "LOW_joint_bad", "MID_joint_bad", "HIGH_joint_bad",
+    "LOW_pca_bad", "MID_pca_bad", "HIGH_pca_bad", "all_pca_bad", "finite_extreme_1e160",
+    "finite_extreme_1e200", "sign_alternating_extreme", "finite_extreme_cov", "nonfinite_inputs",
+    "candidate_unicode_alias", "candidate_duplicate_real_index", "csv_extra_cell", "csv_missing_cell",
+    "csv_quoted_valid", "csv_reordered_valid", "public_only_reference", "independent_regeneration"
+  ]
+}

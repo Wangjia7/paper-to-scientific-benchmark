@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "public_zip": "agent_input.zip",
+  "private_zip": "hidden_scoring.zip",
+  "required_files": {
+    "generator": "generate.py",
+    "grader": "private/grader.py",
+    "reference_solver": "private/reference_solver.py",
+    "hidden_truth": "private/truth.npz",
+    "audit_script": "private/audit_qc.py",
+    "public_readme": "public/README_AGENT.md",
+    "public_scoring_schema": "public/SCHEMA.json",
+    "audit_log": "private/QC_RESULTS.json"
+  },
+  "required_check_names": [
+    "REFERENCE_PASSES",
+    "SCIENTIFIC_FAILURE_REJECTED",
+    "INVALID_REJECTED",
+    "SCIENTIFIC_EQUIVALENT_ACCEPTED",
+    "REPRODUCIBLE",
+    "RESOURCE_VERIFIED",
+    "PUBLIC_PRIVATE_ISOLATED"
+  ]
+}

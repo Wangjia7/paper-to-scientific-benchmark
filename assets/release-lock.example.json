@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "release_id": "example_benchmark_v1_FROZEN",
+  "public": {
+    "file_count": 5,
+    "manifest": "benchmark_manifest.json",
+    "readme": "README_AGENT.md",
+    "required_members": [
+      "README_AGENT.md",
+      "benchmark_manifest.json",
+      "calibration.csv",
+      "blind.csv",
+      "prediction_template.csv"
+    ],
+    "csv_templates": [
+      {
+        "member": "prediction_template.csv",
+        "header": ["case_id", "prediction"],
+        "id_column": "case_id",
+        "id_regex": "[A-Z][0-9]{4}",
+        "rows": 40
+      }
+    ]
+  },
+  "private": {
+    "min_file_count": 6,
+    "reviewer_readme": "private/README_REVIEWER.md",
+    "required_members": [
+      "private/README_REVIEWER.md",
+      "private/generate.py",
+      "private/truth.npz",
+      "private/grader.py",
+      "private/reference_solver.py",
+      "private/audit.py"
+    ]
+  },
+  "task_text_required_tokens": [
+    "prediction_template.csv",
+    "40"
+  ]
+}

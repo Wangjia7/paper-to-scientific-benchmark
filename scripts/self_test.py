@@ -17,6 +17,8 @@ from zipfile import ZipFile
 
 from preflight import load_manifest, validate_manifest, scan_public_names, public_scorecard
 from score import grade
+from qc_matrix import validate_matrix, validate_audit
+from qc_release import verify_release, digest
 
 HERE = Path(__file__).resolve().parent
 SAMPLE_MANIFEST = HERE.parent / "assets" / "benchmark_manifest.example.json"
@@ -126,6 +128,57 @@ def main():
         assert not missing["passed"] and missing["checkpoints"]["B"]["score"] == 0
         assert missing["checkpoints"]["C"]["score"] == 30
 
+        # Extreme finite numbers can overflow a subtraction or a square;
+        # scorer must not produce nonstandard Infinity/NaN JSON or false PASS.
+        write_csv(sub / cpb["output_file"], [cpb["id_column"], cpb["value_column"]], pred_rows["B"])
+        extreme = [[row[0], "1e308" if j % 2 == 0 else "-1e308"]
+                   for j, row in enumerate(pred_rows["B"])]
+        write_csv(sub / cpb["output_file"], [cpb["id_column"], cpb["value_column"]], extreme)
+        extreme_result = grade(manifest, root, sub)
+        assert not extreme_result["passed"]
+        assert extreme_result["checkpoints"]["B"]["score"] < 30.0
+        json.dumps(extreme_result, allow_nan=False)
+        assert extreme_result["checkpoints"]["B"]["rmse_diagnostic_only"] is None
+        # Finite +/- 1e308 prediction and truth can overflow subtraction itself.
+        huge_truth = [r[:] for r in truth_rows["B"]]
+        huge_truth[0][1] = "-1e308"
+        huge_pred = [r[:] for r in pred_rows["B"]]
+        huge_pred[0][1] = "1e308"
+        write_csv(root / cpb["truth_file"], [cpb["id_column"], cpb["value_column"], cpb["group_column"]], huge_truth)
+        write_csv(sub / cpb["output_file"], [cpb["id_column"], cpb["value_column"]], huge_pred)
+        overflow_result = grade(manifest, root, sub)
+        assert overflow_result["checkpoints"]["B"]["score"] < 30.0
+        assert overflow_result["checkpoints"]["B"]["rmse_diagnostic_only"] is None
+        json.dumps(overflow_result, allow_nan=False)
+        write_csv(root / cpb["truth_file"], [cpb["id_column"], cpb["value_column"], cpb["group_column"]], truth_rows["B"])
+        write_csv(sub / cpb["output_file"], [cpb["id_column"], cpb["value_column"]], pred_rows["B"])
+        # Strict row validation: extra and missing cells cannot be ignored.
+        p_b = sub / cpb["output_file"]
+        with p_b.open('a', encoding='utf-8') as f:
+            f.write('1000,2.0,unexpected\n')
+        malformed_result = grade(manifest, root, sub)
+        assert malformed_result["checkpoints"]["B"]["score"] == 0.0
+        assert not malformed_result["passed"]
+        write_csv(p_b, [cpb["id_column"], cpb["value_column"]], pred_rows["B"])
+
+        # Quality necessity gates are not implied by a continuous subscore.
+        matrix = json.loads((HERE.parent / 'assets' / 'qc-coverage-matrix.example.json').read_text())
+        assert not validate_matrix(matrix)
+        missing_gate = deepcopy(matrix)
+        missing_gate['gates'] = missing_gate['gates'][:-1]
+        assert any('missing mandatory' in x for x in validate_matrix(missing_gate))
+        keys = [g['gate_id'] for g in matrix['gates']]
+        tests = {name: {'expected_pass': True, 'actual_pass': True} for name in matrix['required_tests']}
+        audit = {'gate_results': {name: True for name in keys}, 'science_gate_pass': True,
+                 'passed': True, 'test_results': tests, 'grader_sha256': 'example',
+                 'run_command': 'python private/grader.py example', 'run_log_path': 'example.log'}
+        assert not validate_audit(matrix, audit)
+        audit['gate_results'][keys[0]] = False
+        assert any('passed=true' in x for x in validate_audit(matrix, audit))
+        audit['passed'] = False
+        audit['science_gate_pass'] = False
+        assert not validate_audit(matrix, audit)
+
         # Shared scientific experiment: three distinguishable judgments can share
         # one calibration/observation table, one private truth table and one CSV.
         shared = deepcopy(manifest)
@@ -212,6 +265,52 @@ def main():
         assert scan_public_names(root / "public"), "ZIP internal path should be checked"
         (root / "public" / "agent.zip").unlink()
 
+        # Reviewer pack conformance requires all actual artifacts, logs, and
+        # archived public/private segregation; tests cannot be just declared.
+        import zipfile
+        package = deepcopy(json.loads((HERE.parent / 'assets' / 'qc-release-manifest.example.json').read_text()))
+        filepaths = package['required_files']
+        for role, rel in filepaths.items():
+            path = root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if role == 'audit_log':
+                continue
+            path.write_bytes(b'demo content')
+        for kind in ('public_zip', 'private_zip'):
+            with ZipFile(root / package[kind], 'w') as z:
+                if kind=='public_zip':
+                    z.writestr('public/README_AGENT.md', 'a public document')
+                    z.writestr('public/SCHEMA.json', '{}')
+                else:
+                    for role in ('generator','grader','reference_solver','hidden_truth','audit_script'):
+                        z.writestr(filepaths[role], 'a reviewer-only file')
+        audit_checks = {}
+        for label in package['required_check_names']:
+            logfile = f'private/logs/{label}.log'
+            f = root / logfile
+            f.parent.mkdir(exist_ok=True)
+            f.write_text('DEMO ONLY (unit-test fixture)', encoding='utf-8')
+            audit_checks[label] = {'passed': True, 'exit_code': 0, 'log_path': logfile}
+        audit = {'checks': audit_checks, 'grader_sha256': digest(root / filepaths['grader']),
+                 'commands': {'public_only_reference': 'python reference_solver.py out',
+                              'private_grade': 'python private/grader.py out'}}
+        (root / filepaths['audit_log']).write_text(json.dumps(audit), encoding='utf-8')
+        with ZipFile(root / package['private_zip'], 'a') as z:
+            z.writestr(filepaths['audit_log'], json.dumps(audit))
+        assert not verify_release(root, package), verify_release(root, package)
+        # Even with a passing audit file, a removed log or modified grader
+        # must invalidate reviewer release evidence.
+        (root / 'private/logs/REFERENCE_PASSES.log').unlink()
+        assert any('actual log' in x for x in verify_release(root, package))
+        (root / 'private/logs/REFERENCE_PASSES.log').write_text('DEMO ONLY', encoding='utf-8')
+        (root / filepaths['grader']).write_text('CHANGED GRADER', encoding='utf-8')
+        assert any('stale audit' in x for x in verify_release(root, package))
+        # A hidden truth in the Agent ZIP is always a release blocker.
+        with ZipFile(root / package['public_zip'], 'w') as z:
+            z.writestr('public/data.csv', 'safe')
+            z.writestr('private/truth.npz', 'LEAK')
+        assert any('private/suspicious' in x for x in verify_release(root, package))
+
         # Structural uniqueness of outputs; cannot prove actual scientific distinction.
         broken = deepcopy(manifest)
         broken["checkpoints"][1]["output_file"] = broken["checkpoints"][0]["output_file"]
@@ -222,7 +321,7 @@ def main():
         issues, _ = validate_manifest(broken, root, final=False)
         assert any("duplicate private truth_file" in s for s in issues)
 
-    print("PASS: original scoring, configurable judgment counts, shared truth/output tables, per-column independent scoring, scientific-judgment IDs, boundary, row order, invalid files, ZIP leak detection")
+    print("PASS: legacy/shared scientific scoring, anti-compensation matrix, audit gates, float64 extreme loss safety, strict CSV, boundaries, row order, independent invalidity, ZIP leak and reviewer pack checks")
     return 0
 
 

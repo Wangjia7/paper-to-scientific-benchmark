@@ -1,0 +1,44 @@
+{
+  "_note": "Schema example only. Replace entirely with actual grader outputs and logs; NOT a real experiment.",
+  "release_id": "EXAMPLE_replace_with_locked_release",
+  "frozen_before_final_blind": true,
+  "new_physics_holdout_untouched": true,
+  "same_unchanged_grader_for_all": true,
+  "grader_sha256": "REPLACE_WITH_ACTUAL_SHA256",
+  "contract": {
+    "min_total": 80.0,
+    "min_subscore": {"A": 22.0, "B": 18.0, "C": 27.0},
+    "observations": 3,
+    "max_js": 0.020,
+    "mandatory_gates": [
+      "B_LOW_KL", "B_LOW_SOURCE", "B_MID_KL", "B_MID_SOURCE",
+      "B_HIGH_KL", "B_HIGH_SOURCE"
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "REPLACE_physics_case_id",
+      "physics_family": "REPLACE_independently_defined_likelihood_or_response_family",
+      "physics_seed": "REPLACE_preassigned_seed",
+      "split": "dev",
+      "strategies": [
+        {
+          "type": "geometry_only",
+          "uses_observation_data": false,
+          "reads_only_public": true,
+          "output_valid": true,
+          "scores": {"A": 24.737494, "B": 29.194558, "C": 31.002741},
+          "reported_total": 84.934793,
+          "js_per_observation": [0.006496, 0.005615, 0.003314],
+          "mandatory_gates": {
+            "B_LOW_KL": true, "B_LOW_SOURCE": true,
+            "B_MID_KL": true, "B_MID_SOURCE": true,
+            "B_HIGH_KL": true, "B_HIGH_SOURCE": true
+          },
+          "reported_pass": true,
+          "execution_log": "REPLACE_WITH_actual_QC_v9_geometry_replay.log"
+        }
+      ]
+    }
+  ]
+}

@@ -135,14 +135,19 @@ def grade(manifest: dict, root: Path, submission: Path) -> dict[str, Any]:
         per_group = {}
         score = 0.0
         group_gates_ok = True
-        sqerr = 0.0
+        root_sum_squares = 0.0  # hypot handles huge finite errors without squaring overflow
         for g in cp["groups"]:
             gid = g["id"]
             indices = [key for key, (_value, label) in truth.items() if label == gid]
             passed = 0
             for key in indices:
                 err = pred[key] - truth[key][0]
-                sqerr += err * err
+                # Subtracting two finite extremes can itself overflow; that
+                # must be a definite scoring failure, never a zero error.
+                if not math.isfinite(err):
+                    root_sum_squares = math.inf
+                    continue
+                root_sum_squares = math.hypot(root_sum_squares, err)
                 if abs(err) <= g["abs_tol"]:
                     passed += 1
             points = g["weight"] * passed / g["count"]
@@ -157,9 +162,11 @@ def grade(manifest: dict, root: Path, submission: Path) -> dict[str, Any]:
         meets_gate = (score >= cp["min_score"] and group_gates_ok)
         all_checkpoints_ok &= meets_gate
         total += score
+        rmse = root_sum_squares / math.sqrt(len(truth)) if math.isfinite(root_sum_squares) else None
         checkpoints[ident] = {
             "valid": True, "score": score, "min_score": cp["min_score"],
-            "meets_gate": meets_gate, "rmse_diagnostic_only": math.sqrt(sqerr / len(truth)),
+            "meets_gate": meets_gate, "rmse_diagnostic_only": rmse,
+            "rmse_out_of_float64_range": rmse is None,
             "groups": per_group
         }
     return {

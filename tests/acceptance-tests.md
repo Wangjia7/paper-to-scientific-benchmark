@@ -45,3 +45,23 @@
 - 在干净 Linux 容器安装最小开源依赖、从 public/ 目录运行参考程序。
 - 记录 CPU 型号、核数、内存峰值、完整运行/软件调用耗时。
 - 5 小时限制包括 Agent 探索、编译、运行和输出验证；参考程序用时数秒只能证实存在可解路径。
+
+## 新增 QC 实际审计（不是只看正确参考的分数）
+
+执行 `python scripts/qc_guard_self_test.py`（NumPy/SciPy）和 `python scripts/qc_matrix.py --matrix assets/qc-coverage-matrix.example.json`。随后必须在**每一道真实题目的冻结版私有 grader**上运行 `references/09-grader-quality-assurance.md` 中的专项反例，并保存运行输出、脚本、命令、哈希。通用工具 PASS **绝不**代表实际题目 grader 已经过 QC。
+
+- 本科学目标的必要域×必要指标都存在逻辑 AND 的 `hard gates`。一个区域的分布或来源份额错误，即使全题总分≥80、B≥18，也不能通过；其它科学判断分数不变。
+- 输入所有元素有限也要测试中间溢出：`±1e160/±1e200`、正负交错、`1e308 I`。任何 KL `NaN/Inf` 都不能成为0损失或通过。输出诊断 JSON 必须是合法的严格 JSON。
+- 身份验证必须遵守 ASCII 规范及公开候选集合；全角数字别名映射的相同科学位置不能被当作不同点。
+- CSV 每一行多/少一列、重复表头/空值不能被静默忽略；合法引号和允许的行顺序不应改变科学得分。
+- 私有评阅包含版本一致的 generator、truth、grader、public-only reference、审计/独立重复抽样、命令、日志。只给 public 的求解器在独立环境运行，私有评分独立运行。
+- 测试通过状态分为 `REFERENCE_PASSES / SCIENTIFIC_FAILURE_REJECTED / INVALID_REJECTED / SCIENTIFIC_EQUIVALENT_ACCEPTED / REPRODUCIBLE / RESOURCE_VERIFIED`，任何缺失保留 `NOT_VERIFIED`。
+
+
+## v2.4 B05 科学信息必要性与几何旁路回归
+
+- 检查器自身合成对照应通过；把任意一次 `geometry_only` 合法结果替换成 v9 审核报告的 C=31.002741、总分 84.934793、JS=[0.006496,0.005615,0.003314] 后，必须返回 `PILOT_FAIL_SCIENCE_DECISION_BYPASS`。这不是对 Günther v2.3 的重新模拟。
+- 使用同一未修改 grader，输入科学 blind/geometry、距离去重、旧一次排序、条件化及 public-only 参考的所有**真实结果**；必须包含 A/B/C、三个 JS 和 B 六必要条件。
+- 仅换 24 个候选点布局但保留同一观测/后验物理，则**不能**声称完成独立物理条件复验。冻结后还应测试不同后验位置/物理响应/观测精度。
+- 普通路线只要合法全部通过，不能因算法名被拒绝；下一版应回到科学数据生成器，而不能对 84.934793 事后抬阈值。
+- 继续执行 B01–B04 安全回归以及 FP 错版 Release Lock；完成生产级审核时必须真正运行对应私有 grader，而非仅运行新 Skill 的逻辑审计。
